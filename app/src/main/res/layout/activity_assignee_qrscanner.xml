@@ -37,9 +37,8 @@
         android:id="@+id/btnAssigneeQRScanner"
         android:layout_width="wrap_content"
         android:layout_height="100dp"
-        android:text="Start"
         android:layout_below="@+id/tvJobOrderInfo"
-        android:layout_centerHorizontal="true"
-        android:layout_centerInParent="true"/>
+        android:layout_centerInParent="true"
+        android:text="Assign and Start" />
 
 </RelativeLayout>

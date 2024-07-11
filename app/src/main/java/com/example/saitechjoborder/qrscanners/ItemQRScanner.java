@@ -1,15 +1,12 @@
 package com.example.saitechjoborder.qrscanners;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Toast;
 
-import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -18,54 +15,49 @@ import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.budiyev.android.codescanner.CodeScanner;
 import com.budiyev.android.codescanner.CodeScannerView;
-import com.budiyev.android.codescanner.DecodeCallback;
-import com.budiyev.android.codescanner.ScanMode;
+import com.example.saitechjoborder.MainActivity;
 import com.example.saitechjoborder.R;
-import com.example.saitechjoborder.classes.JobOrder;
+import com.example.saitechjoborder.ScanItemActivity;
+import com.example.saitechjoborder.Screen;
 import com.example.saitechjoborder.connect.MyConstants;
+import com.example.saitechjoborder.Assignee;
 import com.google.zxing.Result;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class ItemQRScanner extends AppCompatActivity {
     private CodeScanner mCodeScanner;
-    boolean isValidFqItem = true;
     RequestQueue requestQueue;
     StringRequest stringRequest;
+    private String fqItemId;
+
+    private String department;
+
+    private String jobOrderNo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_qrscanner);
 
-        CodeScannerView scannerView = findViewById(R.id.scanner_view);
+        Intent i = getIntent();
+        Screen screen = (Screen) Objects.requireNonNull(i.getExtras()).get("screen");
+        fqItemId = i.getStringExtra("fqItemId");
+        department = i.getStringExtra("department");
+        jobOrderNo = i.getStringExtra("jobOrderNo");
+        try {
+            CodeScannerView scannerView = findViewById(R.id.scanner_item);
+            mCodeScanner = new CodeScanner(this, scannerView);
+            mCodeScanner.setDecodeCallback(result -> runOnUiThread(() -> getTask(screen, result)));//fqitemid
+            scannerView.setOnClickListener(view -> mCodeScanner.startPreview());
 
-        mCodeScanner = new CodeScanner(this, scannerView);
+        }catch(Exception e){
+            Toast.makeText(this, "Check information.", Toast.LENGTH_SHORT).show();
+        }
 
-        mCodeScanner.setDecodeCallback(new DecodeCallback() {
-            @Override
-            public void onDecoded(@NonNull final Result result) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        getJobOrders(result.getText());
-                    }
-                });
-            }
-        });
 
-        scannerView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                mCodeScanner.startPreview();
-            }
-        });
     }
 
     @Override
@@ -76,45 +68,130 @@ public class ItemQRScanner extends AppCompatActivity {
 
     @Override
     protected void onPause() {
-        mCodeScanner.releaseResources();
         super.onPause();
+        mCodeScanner.releaseResources();
     }
 
-    public void getJobOrders(String fqItemId) {
+    @Override
+    protected void onStop() {
+        super.onStop();
+        mCodeScanner.releaseResources();
+    }
 
+    private void getTask(Screen screen, Result result)
+    {
+        if(screen == Screen.ScanItem){
+            try {
+                String jobOrderNo = result.getText().split(",")[0];
+                String fqItemId = result.getText().split(",")[1];
+                getJobOrders(jobOrderNo, fqItemId);
+            }catch (Exception e){
+                Toast.makeText(getApplicationContext(), "Invalid QR.", Toast.LENGTH_SHORT).show();
+                Intent i = new Intent(getApplicationContext(), ScanItemActivity.class);
+                i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                setResult(Screen.Main.ordinal(), i);
+                finish();
+
+            }
+        }
+        else if(screen == Screen.Assignee){
+            startWork(this.jobOrderNo, this.fqItemId);
+        }
+    }
+
+    public void getJobOrders(String jobOrderNo, String fqItemId) {
         requestQueue = Volley.newRequestQueue(this);
+        String toastMessage = "Try again";
+        Toast toast = Toast.makeText(getApplicationContext(), toastMessage, Toast.LENGTH_SHORT);
+
         stringRequest = new StringRequest(
                 Request.Method.POST,
                 MyConstants.SERVER_NAME + "JobOrder/CheckFqItemId.php",
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-                        if(response.equals(fqItemId)){
-                            Toast.makeText(getApplicationContext(), fqItemId, Toast.LENGTH_SHORT).show();
-                            Intent i = new Intent(getApplicationContext(), AssigneeQRScanner.class);
+                response -> {
+                    try {
+                        if (response.equals(fqItemId)) {
+                            toast.setText(fqItemId);
+                            toast.show();
+                            Intent i = new Intent(getApplicationContext(), Assignee.class);
                             i.putExtra("fqItemId", fqItemId);
-                            startActivity(i);
+                            i.putExtra("department", department);
+                            i.putExtra("jobOrderNo", jobOrderNo);
+                            i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                            setResult(Screen.Assignee.ordinal(), i);
+                            finish();
+                        } else {
+                            toast.setText("Invalid QR.");
+                            toast.show();
                         }
-                        else
-                        {
-                            Toast.makeText(getApplicationContext(), "Invalid QR." + response, Toast.LENGTH_SHORT).show();
-                        }
+                    } catch (Exception e) {
+                        toast.setText("Please try again.");
+                        toast.show();
+                        Intent i = new Intent(getApplicationContext(), Assignee.class);
+                        i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        setResult(Screen.Assignee.ordinal(), i);
+                        finish();
                     }
                 },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Toast.makeText(getApplicationContext(),
-                                "Please provide correct data. Check also empty fields.",
-                                Toast.LENGTH_SHORT).show();
-                    }
+                error -> {
+                    toast.setText("Please provide correct data. Check also empty fields.");
+                    toast.show();
                 }
-        ){
-            @Nullable
+        ) {
+            @NonNull
             @Override
-            protected Map<String, String> getParams() throws AuthFailureError {
+            protected Map<String, String> getParams() {
                 HashMap<String, String> map = new HashMap<>();
                 map.put("fqItemId", fqItemId);
+                map.put("jobOrderNo", jobOrderNo);
+                return map;
+            }
+        };
+
+        requestQueue.add(stringRequest);
+    }
+
+    private void startWork(String assignedJobOrder, String assignedTo) {
+        requestQueue = Volley.newRequestQueue(this);
+        String toastMessage = "Try again";
+        Toast toast = Toast.makeText(getApplicationContext(), toastMessage, Toast.LENGTH_SHORT);
+        stringRequest = new StringRequest(
+                Request.Method.POST,
+                MyConstants.SERVER_NAME + "JobOrder/StartWork.php",
+                response -> {
+                    try {
+                        if (response.equals("success")) {
+                            toast.setText("Successfully assigned.");
+                            toast.show();
+                            Intent i = new Intent(getApplicationContext(), ScanItemActivity.class);
+                            i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                            setResult(Screen.Main.ordinal(), i);
+                            finish();
+                        } else {
+                            toast.setText("Invalid QR.");
+                            toast.show();
+                        }
+                    }
+                    catch(Exception e){
+                        toast.setText("Please try again.");
+                        toast.show();
+                        Intent i = new Intent(getApplicationContext(), ScanItemActivity.class);
+                        i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        setResult(Screen.Main.ordinal(), i);
+                        finish();
+                    }
+                },
+                error -> Toast.makeText(getApplicationContext(),
+                        "Please provide correct data. Check also empty fields.",
+                        Toast.LENGTH_SHORT).show()
+        ){
+            @NonNull
+            @Override
+            protected Map<String, String> getParams() {
+                HashMap<String, String> map = new HashMap<>();
+                map.put("assignedJobOrder", assignedJobOrder);
+                map.put("fqItemNo", fqItemId);
+                map.put("assignedTo", assignedTo);
+                map.put("department", department);
                 return map;
             }
         };

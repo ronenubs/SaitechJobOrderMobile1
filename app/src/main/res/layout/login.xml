@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
     <ImageView
+        android:contentDescription="@string/imagelogo"
         android:id="@+id/ivLogo"
         android:src="@drawable/saitech_jo"
         android:layout_width="250dp"
@@ -18,10 +18,12 @@
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="100dp"
-        android:ems="10"
-        android:hint="username"
+        android:hint="@string/username"
         android:inputType="textPersonName"
-        android:layout_below="@+id/ivLogo"/>
+        android:layout_below="@+id/ivLogo"
+        android:autofillHints=""
+        android:minHeight="48dp"
+        />
 
     <EditText
         android:id="@+id/etPassword"
@@ -29,18 +31,18 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="28dp"
         android:ems="10"
-        android:hint="password"
+        android:hint="@string/password"
         android:inputType="textPassword"
-        android:layout_below="@+id/etUsername" />
+        android:layout_below="@+id/etUsername"
+        android:autofillHints=""
+        android:minHeight="48dp"/>
 
     <Button
         android:id="@+id/btnLogin"
-        android:layout_width="wrap_content"
+        android:layout_width="800dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="154dp"
         android:layout_marginTop="56dp"
-        android:layout_marginEnd="163dp"
         android:layout_marginBottom="213dp"
-        android:text="Login"
+        android:text="@string/login"
         android:layout_below="@+id/etPassword" />
 </RelativeLayout>
